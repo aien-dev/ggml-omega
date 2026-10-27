@@ -1,0 +1,11 @@
+note sexp_@T@: w[i] = f32 exp(w[i] - max) in place; returns acc (f64 bits) + the sum of the new w[i].
+fn sexp_@T@ acc ulong w edit f32 @T@ mx ulong to ulong
+s = bitcast f64 acc
+mf = bitcast f32 uint mx
+for i ulong @T@
+v = f32 ex64 f64 sub get w i mf
+put w i v
+s = add s f64 v
+end
+ret bitcast ulong s
+end

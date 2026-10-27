@@ -1,0 +1,6 @@
+note f2hv_@T@: f32 -> f16 on @T@ lanes, round to nearest even.
+fn f2hv_@T@ s view f32 @T@ d edit ushort @T@ to void
+for i ulong @T@
+put d i f2h get s i
+end
+end

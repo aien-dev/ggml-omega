@@ -1,0 +1,6 @@
+note h2fv_@T@: f16 -> f32 on @T@ lanes.
+fn h2fv_@T@ s view ushort @T@ d edit f32 @T@ to void
+for i ulong @T@
+put d i h2f get s i
+end
+end

@@ -1,0 +1,71 @@
+name: ggml-omega
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  OMEGA_MV_REF: e5b32567a7aff3ce594e3254a622a846a6cd190b      # omc sha256 2c824805… (pinned in build.sh)
+  OMEGA_BRIDGE_REF: d06ec808de7da583acbadf0cb4bb3ba48797e729  # src/native.om sha256 901684b2… (pinned in build.sh)
+  LLAMA_REF: 7aca0d2ea8d92b56911233b822db01f9fbb1ae50         # pinned in build.sh
+  MODEL_URL: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q8_0.gguf
+  MODEL_SHA256: ca59ca7f13d0e15a8cfa77bd17e65d24f6844b554a7b6c12e07a5f89ff76844e
+jobs:
+  test:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: pinned sources
+        run: |
+          set -eu
+          mkdir -p deps && cd deps
+          curl -fsSL -o omc "https://raw.githubusercontent.com/aien-dev/omega-mv/$OMEGA_MV_REF/seed/out/omc" && chmod +x omc
+          for r in omega-bridge:$OMEGA_BRIDGE_REF llama.cpp:$LLAMA_REF; do
+            n=${r%%:*}; s=${r#*:}; u=https://github.com/aien-dev/omega-bridge; [ "$n" = llama.cpp ] && u=https://github.com/ggml-org/llama.cpp
+            git init -q "$n" && git -C "$n" fetch -q --depth 1 "$u" "$s" && git -C "$n" checkout -q FETCH_HEAD
+          done
+      - name: llama.cpp (CPU backend, test-backend-ops)
+        run: |
+          cmake -S deps/llama.cpp -B deps/llama.cpp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+            -DLLAMA_BUILD_TESTS=ON -DLLAMA_CURL=OFF -DGGML_NATIVE=ON -DGGML_OPENMP=OFF > /dev/null
+          cmake --build deps/llama.cpp/build -j"$(nproc)" --target test-backend-ops llama > /dev/null
+      - name: build libggml-omega.so and its add->sub mutant
+        run: |
+          export OMEGA_GGML_OMC=$PWD/deps/omc OMEGA_BRIDGE=$PWD/deps/omega-bridge GGML_SRC=$PWD/deps/llama.cpp GGML_LIB=$PWD/deps/llama.cpp/build/bin
+          ./build.sh
+          OMEGA_GGML_OUT=$PWD/build-mut OMEGA_GGML_MUTANT=bin-add ./build.sh
+      - name: Omega math units against libm and _Float16
+        run: |
+          cc -std=gnu11 -O2 -ffp-contract=off -Wall -Wextra -Werror -o build/test-kernels tests/kernels.c build/omega_ggml_kernels.o -lm
+          ./build/test-kernels | tee build/kernels.txt
+      - name: test-backend-ops, Omega vs CPU, per op
+        run: tests/backend-ops.sh deps/llama.cpp/build/bin/test-backend-ops "$PWD/build/libggml-omega.so" "$PWD/build-mut/libggml-omega.so" | tee build/backend-ops.tsv
+      - name: end to end, Qwen2.5-0.5B q8_0, CPU vs Omega
+        if: always()
+        run: |
+          set -eu
+          L=deps/llama.cpp
+          cc -std=gnu11 -O2 -Wall -Wextra -Werror -I$L/include -I$L/ggml/include -o build/e2e tests/e2e.c -L$L/build/bin -lllama -lggml -lggml-base -Wl,-rpath,$PWD/$L/build/bin
+          cc -std=gnu11 -O2 -Wall -Wextra -Werror -o build/cmp tests/cmp.c -lm
+          curl -fsSL -o model.gguf "$MODEL_URL"
+          echo "$MODEL_SHA256  model.gguf" | sha256sum -c
+          N=${E2E_TOKENS:-16}
+          ./build/e2e model.gguf $N build/cpu.logits 2 > build/e2e-cpu.jsonl
+          GGML_BACKEND_PATH=$PWD/build/libggml-omega.so ./build/e2e model.gguf $N build/omega.logits 2 > build/e2e-omega.jsonl 2> build/e2e-omega.err
+          cat build/e2e-omega.err
+          NV=$(tail -n1 build/e2e-cpu.jsonl | sed 's/.*"n_vocab":\([0-9]*\).*/\1/')
+          ./build/cmp "$NV" build/cpu.logits build/omega.logits | tee build/e2e-cmp.json
+          cat build/e2e-cpu.jsonl build/e2e-omega.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ggml-omega-logs
+          path: |
+            build/*.txt
+            build/*.tsv
+            build/*.json
+            build/*.jsonl
+            build/*.err
+            build/backend-ops/

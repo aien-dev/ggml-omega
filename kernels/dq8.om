@@ -1,0 +1,28 @@
+note dq8_@B@: q8_0 dot over @B@ blocks of 34 bytes (f16 scale d, 32 signed bytes q) against f32 x:
+note acc (f64 bits) + sum over blocks of f64(d * sum_j f32(q_j)*x_j); fin 1 returns the f32 total.
+fn q8s u uchar to f32
+q = long u
+if ge q 128
+q = sub q 256
+end
+ret f32 q
+end
+fn q8d w view uchar @W@ o ulong to f32
+ret h2f ushort or ulong get w o shl ulong get w add o 1 8
+end
+fn dq8_@B@ acc ulong w view uchar @W@ x view f32 @X@ fin ulong to ulong
+s = bitcast f64 acc
+for b ulong @B@
+o = mul b 34
+xo = mul b 32
+bs = f32 0.0
+for j ulong 32
+bs = add bs mul q8s get w add add o 2 j get x add xo j
+end
+s = add s f64 mul q8d view w o bs
+end
+if eq fin 1
+ret ulong bitcast uint f32 s
+end
+ret bitcast ulong s
+end

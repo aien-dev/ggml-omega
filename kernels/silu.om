@@ -1,0 +1,8 @@
+note silu_@T@: d = x/(1 + expf(-x)) in f32, as ggml_silu_f32.
+fn silu_@T@ a view f32 @T@ d edit f32 @T@ to void
+for i ulong @T@
+x = get a i
+e = f32 ex64 f64 neg x
+put d i div x add f32 1.0 e
+end
+end

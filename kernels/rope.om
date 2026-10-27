@@ -1,0 +1,31 @@
+note rope: one rotated pair. theta = pos * ts^i (f32, multiplied i times as ggml_rope_cache_init),
+note times freq_scale; out0 = x0*c - x1*s, out1 = x0*s + x1*c with c, s = cos, sin(theta)*attn_factor.
+note xy packs x0 (low 32 bits) and x1; fa packs freq_scale (low) and attn_factor. Returns the packed pair.
+fn lo32 v ulong to f32
+ret bitcast f32 uint and v 4294967295
+end
+fn hi32 v ulong to f32
+ret bitcast f32 uint shr v 32
+end
+fn rth pos ulong i ulong ts ulong fs f32 to f64
+t = f32 bitcast int uint pos
+tsf = bitcast f32 uint ts
+for k ulong i
+t = mul t tsf
+end
+ret f64 mul fs t
+end
+fn pack a f32 b f32 to ulong
+ret or ulong bitcast uint a shl ulong bitcast uint b 32
+end
+fn rope xy ulong pos ulong i ulong ts ulong fa ulong to ulong
+th = rth pos i ts lo32 fa
+af = hi32 fa
+c = mul f32 sc64 th 1 af
+s = mul f32 sc64 th 0 af
+x0 = lo32 xy
+x1 = hi32 xy
+o0 = sub mul x0 c mul x1 s
+o1 = add mul x0 s mul x1 c
+ret pack o0 o1
+end

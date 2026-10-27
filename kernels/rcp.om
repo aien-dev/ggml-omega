@@ -1,0 +1,4 @@
+note rcp: f32(1.0/sum) as f32 bits, sum f64 bits: the soft_max normaliser of ggml-cpu.
+fn rcp acc ulong to ulong
+ret ulong bitcast uint f32 div f64 1.0 bitcast f64 acc
+end

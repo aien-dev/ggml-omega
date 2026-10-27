@@ -1,0 +1,11 @@
+note dh16_@T@: as df32 with f16 weights, converted in Omega (h2f).
+fn dh16_@T@ acc ulong w view ushort @T@ x view f32 @T@ fin ulong to ulong
+s = bitcast f64 acc
+for i ulong @T@
+s = add s f64 mul h2f get w i get x i
+end
+if eq fin 1
+ret ulong bitcast uint f32 s
+end
+ret bitcast ulong s
+end

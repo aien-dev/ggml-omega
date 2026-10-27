@@ -1,0 +1,12 @@
+note scl_@T@: d = x*s + b on @T@ f32 lanes (s, b f32 bits); b 0 gives the plain x*s of ggml_vec_scale_f32.
+fn scl_@T@ x view f32 @T@ d edit f32 @T@ s ulong b ulong to void
+sf = bitcast f32 uint s
+bf = bitcast f32 uint b
+for i ulong @T@
+v = mul get x i sf
+if ne b 0
+v = add v bf
+end
+put d i v
+end
+end
