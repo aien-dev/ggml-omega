@@ -1,0 +1,21 @@
+{
+  "project_name": "ggml-omega",
+  "parent": "aien-dev/omega-bridge",
+  "goals": [
+    {
+      "id": "goal-backend",
+      "title": "llama.cpp runs ops through Omega kernels",
+      "description": "omega-bridge issue #10: ggml backend over seeded-Omega units, checked against the CPU backend and end to end.",
+      "status": "Active",
+      "milestones": [
+        {"id": 1, "description": "Omega kernels for MUL_MAT f32/f16/q8_0, binary ops, RMS_NORM, SCALE, SOFT_MAX, ROPE, GET_ROWS, SET_ROWS, CPY, SWIGLU, SILU", "completed": true},
+        {"id": 2, "description": "Math units match libm / _Float16 oracles with a failing negative control", "completed": true},
+        {"id": 3, "description": "test-backend-ops per-op table vs CPU, add->sub mutant caught", "completed": false},
+        {"id": 4, "description": "Qwen2.5-0.5B q8_0 end to end: top-1 agreement, max abs logit diff, tok/s", "completed": false},
+        {"id": 5, "description": "Replace ggml-omega.c with an .om loadable object (omega-mv #636/#637)", "completed": false}
+      ],
+      "created_at": "2026-10-27T01:25:36Z",
+      "updated_at": "2026-10-27T01:25:36Z"
+    }
+  ]
+}

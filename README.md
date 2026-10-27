@@ -1,0 +1,44 @@
+# ggml-omega
+
+A [ggml](https://github.com/ggml-org/llama.cpp/tree/master/ggml) backend whose op kernels are seeded-Omega units.
+llama.cpp loads it as an out-of-tree backend (`GGML_BACKEND_PATH=libggml-omega.so`); the ops it takes run in
+Omega-compiled code, every other op falls back to ggml's CPU backend. One job: run ggml ops through Omega.
+
+| Op | Omega kernels (`kernels/`) | Scope |
+|---|---|---|
+| MUL_MAT | `df32`, `dh16`, `dq8`, `dq8r` (row dots, f64 accumulation) | weights f32, f16, q8_0; activations f32 |
+| ADD SUB MUL DIV | `bin` | f32, row-level broadcast |
+| RMS_NORM, SCALE | `sq`, `rmsc`, `scl` | f32 rows |
+| SOFT_MAX | `smw`, `smwh`, `vmax`, `sexp`, `rcp` | f32, optional f32/f16 mask, no ALiBi bias, no sinks |
+| ROPE | `rtsc`, `rope` (own sin/cos/exp/log in `math.om`) | NORMAL and NEOX, no YaRN ramp, no freq factors |
+| GET_ROWS, SET_ROWS, CPY/CONT/DUP | `cpy`, `cpyh`, `h2fv`, `f2hv` | f32 and f16 (f16 rounding done in Omega) |
+| GLU (swiglu), UNARY (silu) | `swi`, `silu` | f32 |
+
+`ggml-omega.c` is **interim host glue**: tensor addressing, loops, thread split, staging copies and bit moves
+only; every arithmetic step and conversion is Omega. Its successor is an `.om` loadable object once the Omega
+native object ABI exists (aien-dev/omega-mv #636/#637).
+
+## Build and test
+
+```sh
+OMEGA_GGML_OMC=<omega-mv seed/out/omc> OMEGA_BRIDGE=<omega-bridge checkout> \
+GGML_SRC=<llama.cpp checkout> GGML_LIB=<llama.cpp build/bin> ./build.sh
+tests/backend-ops.sh <build/bin/test-backend-ops> build/libggml-omega.so [mutant .so]
+```
+
+Pins (checked by `build.sh`, refuses on mismatch): omc sha256 `2c824805…` (aien-dev/omega-mv `e5b32567`),
+omega-bridge `src/native.om` sha256 `901684b2…` (omega-bridge `d06ec808`), llama.cpp `7aca0d2e`.
+`.github/workflows/ci.yml` runs the whole chain on `ubuntu-24.04-arm`: kernels vs libm and `_Float16`,
+`test-backend-ops` per op against the CPU backend, an `add -> sub` mutant that must fail, and a Qwen2.5-0.5B
+q8_0 end-to-end greedy decode, CPU vs Omega (top-1 agreement, max abs logit difference, timing).
+
+## Connected repos
+
+- Parent: [aien-dev/omega-bridge](https://github.com/aien-dev/omega-bridge) supplies the native call ABI binding
+  generator (`src/native.om`, f32/ushort kinds from omega-bridge PR #26), pinned by sha256.
+- Compiler: [aien-dev/omega-mv](https://github.com/aien-dev/omega-mv) `seed/out/omc`, pinned by sha256.
+- Host: [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp), pinned by commit; nothing here is upstreamed.
+
+## License
+
+Apache-2.0 WITH LLVM-exception, see [LICENSE](LICENSE).
