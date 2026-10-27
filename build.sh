@@ -9,7 +9,8 @@
 #   OMEGA_GGML_MUTANT negative controls: bin-add (the add lane of bin.om computes x - y; test-backend-ops
 #                     must fail) or math-exp (math.om's e^x series keeps 4 terms instead of 13; tests/kernels.c
 #                     must fail) or gbmm-k (gbmm.om plans k - 1: the GB10 MUL_MAT drops the last k element;
-#                     test-backend-ops -b OmegaGB10 must fail)
+#                     test-backend-ops -b OmegaGB10 must fail) or bfs-lo (bfs.om writes the hi plane into lo:
+#                     the GB10 GEMV route computes about 2 W x; test-backend-ops -b OmegaGB10 must fail)
 #   OMEGA_GGML_GB10   1: also build the GB10 device (ggml-omega-gb10.c, migration-pending host glue) against
 #                     CUDA++: CUDAPP_SRC (aien-dev/CUDApp src/, needs omega_gpu_gemm_ex.h) and CUDAPP_LIB
 #                     (its libomega_gpu.a built with -fPIC). Default 0: the host device only.
@@ -35,7 +36,7 @@ rm -rf "$O"; mkdir -p "$O/units"
 # file:tile instances. T is the f32/f16 lane count; dq8 takes blocks (B), bytes (W) and floats (X).
 INST="bin:32 bin:1 sq:32 sq:1 rmsc:0 scl:32 scl:1 smw:32 smw:1 smwh:32 smwh:1 vmax:32 vmax:1
 sexp:32 sexp:1 rcp:0 rtsc:0 rope:0 df32:256 df32:32 df32:1 dh16:256 dh16:32 dh16:1 dq8:8 dq8:1
-dq8r:0 h2fv:32 h2fv:1 f2hv:32 f2hv:1 cpy:32 cpy:1 cpyh:32 cpyh:1 swi:32 swi:1 silu:32 silu:1"
+dq8r:0 h2fv:32 h2fv:1 f2hv:32 f2hv:1 cpy:32 cpy:1 cpyh:32 cpyh:1 swi:32 swi:1 silu:32 silu:1 bfs:256 bfs:1"
 GB10=${OMEGA_GGML_GB10:-0}
 [ "$GB10" = 1 ] && INST="$INST gbmm:0"
 : > "$O/units.in"
@@ -54,6 +55,10 @@ for it in $INST; do
   if [ "${OMEGA_GGML_MUTANT:-}" = gbmm-k ] && [ "$f" = gbmm ]; then
     sed -i 's/^put p 2 get d 0$/put p 2 sub get d 0 1/' "$O/units/$u.om"
     grep -q '^put p 2 sub get d 0 1$' "$O/units/$u.om" || { echo "FAIL mutant not applied to $u" >&2; exit 1; }
+  fi
+  if [ "${OMEGA_GGML_MUTANT:-}" = bfs-lo ] && [ "$f" = bfs ]; then
+    sed -i 's/^put l i ushort shr bitcast uint r 16$/put l i ushort shr u 16/' "$O/units/$u.om"
+    grep -q '^put l i ushort shr u 16$' "$O/units/$u.om" || { echo "FAIL mutant not applied to $u" >&2; exit 1; }
   fi
   "$OMC" < "$O/units/$u.om" > "$O/units/$u.bin" || { echo "FAIL omc $u" >&2; exit 1; }
   { cat "$O/units/$u.om"; printf '\0'; printf '%08d' "$(wc -c < "$O/units/$u.bin")"; cat "$O/units/$u.bin"; } >> "$O/units.in"

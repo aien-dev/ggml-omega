@@ -1,0 +1,11 @@
+note bfs_@T@: f32 -> two bf16 planes by truncation (the first two planes of CUDApp gemm_ex's bf16x3 split):
+note h = the top 16 bits of x, l = the top 16 bits of f32(x - f32(h)); for finite x, x - (h + l) < 2^-16 |x|.
+fn bfs_@T@ s view f32 @T@ h edit ushort @T@ l edit ushort @T@ to void
+for i ulong @T@
+x = get s i
+u = bitcast uint x
+r = sub x bitcast f32 and u 4294901760
+put h i ushort shr u 16
+put l i ushort shr bitcast uint r 16
+end
+end
