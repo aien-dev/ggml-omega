@@ -5,8 +5,10 @@
 #   OMEGA_BRIDGE     an aien-dev/omega-bridge checkout; its src/native.om must match the pinned sha256
 #   GGML_SRC         a llama.cpp checkout at the pinned commit (headers: ggml/include, ggml/src)
 #   GGML_LIB         the folder holding that checkout's libggml-base.so and libggml-cpu.so
-#   OMEGA_GGML_OUT   output folder (default build/ggml)
-#   OMEGA_GGML_MUTANT=bin-add  negative control: the add lane of bin.om computes x - y instead.
+#   OMEGA_GGML_OUT   output folder (default build)
+#   OMEGA_GGML_MUTANT negative controls: bin-add (the add lane of bin.om computes x - y; test-backend-ops
+#                     must fail) or math-exp (math.om's e^x series keeps 4 terms instead of 13; tests/kernels.c
+#                     must fail)
 set -eu
 PIN=2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f
 LLAMA_PIN=7aca0d2ea8d92b56911233b822db01f9fbb1ae50
@@ -38,6 +40,10 @@ for it in $INST; do
   if [ "${OMEGA_GGML_MUTANT:-}" = bin-add ] && [ "$f" = bin ]; then
     sed -i 's/^put d i add x y$/put d i sub x y/' "$O/units/$u.om"
     grep -q '^put d i sub x y$' "$O/units/$u.om" || { echo "FAIL mutant not applied to $u" >&2; exit 1; }
+  fi
+  if [ "${OMEGA_GGML_MUTANT:-}" = math-exp ]; then
+    sed -i 's/^for i ulong 13$/for i ulong 4/; s/^n = f64 sub 13 i$/n = f64 sub 4 i/' "$O/units/$u.om"
+    grep -q '^for i ulong 4$' "$O/units/$u.om" || { echo "FAIL mutant not applied to $u" >&2; exit 1; }
   fi
   "$OMC" < "$O/units/$u.om" > "$O/units/$u.bin" || { echo "FAIL omc $u" >&2; exit 1; }
   { cat "$O/units/$u.om"; printf '\0'; printf '%08d' "$(wc -c < "$O/units/$u.bin")"; cat "$O/units/$u.bin"; } >> "$O/units.in"
