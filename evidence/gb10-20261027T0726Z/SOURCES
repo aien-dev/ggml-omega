@@ -1,0 +1,5 @@
+CUDApp src: aien-dev/CUDApp#139 fba0384 (diff -rq src clean), libomega_gpu.a sha256 725341d11fb8d879f70101fbf1c580aadee6aa113dfe1e46ca0374ad76a3543e
+llama.cpp 7aca0d2e; omc sha256 2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f
+ae636482e9e44309f22a5b47b334ac5b33a9519307c6f698b7857bf79a437f8a  ggml-omega/build-gb10/libggml-omega.so
+d4886f8292cf3e3c950dd440d4938d901f462aaea04899bf40418afd39434d7e  ggml-omega/build-gb10-mut/libggml-omega.so
+run: /home/drakestapleton/handoffs/BridgeAttach/chip-run.sh under flock /tmp/aien-gb10.lock, beside the live 35B (pid 79557), 48 s hold

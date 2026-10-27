@@ -18,6 +18,26 @@ Omega-compiled code, every other op falls back to ggml's CPU backend. One job: r
 only; every arithmetic step and conversion is Omega. Its successor is an `.om` loadable object once the Omega
 native object ABI exists (aien-dev/omega-mv #636/#637).
 
+## OmegaGB10 device (opt-in)
+
+Built with `OMEGA_GGML_GB10=1 CUDAPP_SRC=<CUDApp src> CUDAPP_LIB=<CUDApp build-pic/libomega_gpu.a>` and selected at
+run time with `OMEGA_GGML_DEVICES=gb10` (or `host,gb10`; default `host`), a second device runs three ops on the
+NVIDIA GB10 through CUDA++ (aien-dev/CUDApp) runtime calls whose kernels come from Omega's own code generator:
+
+| Op | Chip call | Scope |
+|---|---|---|
+| MUL_MAT | `omega_gpu_gemm_ex` (CUDApp `gemm_ex`, aien-dev/CUDApp#139); shapes, leading dimensions and batch strides planned by the Omega unit `kernels/gbmm.om` | weights f32, f16, bf16, or q8_0 dequantised by the Omega unit `dq8r`; activations f32, so every call takes the bf16x3 route (HMMA.BF16, fp32 accumulation; not exact fp32) |
+| RMS_NORM | `omega_gpu_rmsnorm_f32` | f32 rows, row length a multiple of 128, at most 16384 |
+| GLU swiglu | `omega_gpu_swiglu_f32` | f32 |
+
+Every other op falls back to ggml's CPU backend. `ggml-omega-gb10.c` is interim host glue like `ggml-omega.c`
+(same successor). Receipt, 2026-10-27 on the Spark GB10 beside the resident server
+([evidence/gb10-20261027T0726Z](evidence/gb10-20261027T0726Z)): `test-backend-ops -b OmegaGB10` against the CPU
+backend, MUL_MAT 871 cases OK / 0 FAIL, RMS_NORM 7 / 0, SWIGLU 12 / 0; a mutant `gbmm.om` (`OMEGA_GGML_MUTANT=gbmm-k`)
+fails 385 MUL_MAT cases. This is op-level EXERCISED on one chip, not a qualification. NOT_RUN: any model on the
+GB10 device (`tests/e2e-gb10.sh`, CPU vs OmegaGB10 token and logit match) waits for an exclusive GPU window; CI
+has no GB10 and builds the host device only.
+
 ## Build and test
 
 ```sh
