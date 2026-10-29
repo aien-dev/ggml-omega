@@ -45,6 +45,11 @@ jobs:
           sh tests/exports.sh build/libggml-omega.so
           sh tests/exports.sh build-mut/libggml-omega.so
           sh tests/exports.sh build-exp/libggml-omega.so
+      - name: empty model graph control (host only)
+        run: |
+          L=$PWD/deps/llama.cpp
+          cc -std=gnu11 -O2 -Wall -Wextra -Werror -I"$L/ggml/include" tests/empty-graph.c -L"$L/build/bin" -lggml -lggml-base -Wl,-rpath,"$L/build/bin" -o build/empty-graph
+          OMEGA_GGML_DEVICES=host build/empty-graph "$PWD/build/libggml-omega.so" Omega
       - name: Omega math units against libm and _Float16
         run: |
           cc -std=gnu11 -O2 -ffp-contract=off -Wall -Wextra -Werror -o build/test-kernels tests/kernels.c build/omega_ggml_kernels.o -lm
