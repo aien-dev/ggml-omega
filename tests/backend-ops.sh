@@ -14,7 +14,7 @@ printf 'op\tpass\tfail\tnot_supported\tverdict\n'
 for op in $OPS; do
   GGML_BACKEND_PATH=$LIB "$TBO" test -b Omega -o "$op" > "$OUT/$op.log" 2>&1
   rc=$?
-  cases() { grep -a "^  $op(" "$OUT/$op.log" | grep -ac "$1"; }
+  cases() { grep -a " $op(" "$OUT/$op.log" | grep -ac "$1"; }
   p=$(cases '1;32mOK'); f=$(cases '1;31mFAIL'); n=$(cases 'not supported')
   if [ "$f" -gt 0 ] || [ $rc -ne 0 ]; then v=FAIL; fails=$((fails + 1))
   elif [ "$p" -eq 0 ]; then v=NOT_RUN
@@ -23,7 +23,7 @@ for op in $OPS; do
 done
 if [ -n "$MUT" ]; then
   GGML_BACKEND_PATH=$MUT "$TBO" test -b Omega -o ADD > "$OUT/mutant-ADD.log" 2>&1
-  f=$(grep -a '^  ADD(' "$OUT/mutant-ADD.log" | grep -ac '1;31mFAIL')
+  f=$(grep -a ' ADD(' "$OUT/mutant-ADD.log" | grep -ac '1;31mFAIL')
   if [ "$f" -gt 0 ]; then printf 'mutant-bin-add\t-\t%s\t-\tCAUGHT\n' "$f"
   else printf 'mutant-bin-add\t-\t0\t-\tNOT_CAUGHT\n'; fails=$((fails + 1)); fi
 fi
