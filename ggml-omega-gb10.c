@@ -401,6 +401,9 @@ static enum ggml_status gb10_graph_compute(ggml_backend_t backend, struct ggml_c
     for (int i = 0; i < ggml_graph_n_nodes(g); i++) {
         struct ggml_tensor *n = ggml_graph_node(g, i);
         if ((n->flags & GGML_TENSOR_FLAG_COMPUTE) == 0) continue;
+        // Empty graph nodes carry no work, as in ggml's CPU executor. In
+        // particular, never pass a zero-row normalization to the chip API.
+        if (ggml_is_empty(n)) continue;
         const uint64_t t0 = prof_on ? now_ns() : 0;
         switch (n->op) {
             case GGML_OP_NONE: case GGML_OP_RESHAPE: case GGML_OP_VIEW: case GGML_OP_PERMUTE: case GGML_OP_TRANSPOSE: continue;
