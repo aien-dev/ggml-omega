@@ -1,0 +1,135 @@
+{
+  "at": "2026-10-29T11:37:09.159Z",
+  "verdict": "EXERCISED_GREEDY_PASS",
+  "scope": "Q35 BF16 and Q8, fixed plain-text prompt,16tokens CPU vs OmegaGB10, all3 intended operations executed. Not full chat corpus qualification, semantic accuracy or a timed campaign.",
+  "results": [
+    {
+      "arm": "LLOMEGA16",
+      "report": {
+        "steps": 16,
+        "top1_agree": 16,
+        "first_divergence": -1,
+        "max_abs_diff": 0.053817749,
+        "max_abs_diff_step": 4
+      },
+      "profile": [
+        "omega-gb10-profile op=RMS_NORM calls=2448 ms=409.521",
+        "omega-gb10-profile op=MUL_MAT calls=4240 ms=12345.670",
+        "omega-gb10-profile op=SWIGLU calls=512 ms=65.847"
+      ],
+      "forbiddenMappedLibraries": [],
+      "artifacts": [
+        {
+          "name": "cpu.logits",
+          "sha256": "19c060d9f5a3972e179846dfec6eedec18ad73aa48610d39c952c25c8e2c9398"
+        },
+        {
+          "name": "gb10.logits",
+          "sha256": "c7625ea47a37953271c66708e6097a272e3bf21beb5aa28363106e48bc69131c"
+        },
+        {
+          "name": "gb10.maps",
+          "sha256": "8131608e98d5020e3b0a7a70a1e72db0d72a1a7489c4bd5154d37a1a0f31425f"
+        },
+        {
+          "name": "e2e",
+          "sha256": "8992080709d40e93da157b9c39c03ed8885cdf12701dd1c7f4656990fe877002"
+        },
+        {
+          "name": "cmp",
+          "sha256": "6de415c669e1fc748dbe62323336637fb4c208f43fa782b99a63fb7eb822f060"
+        }
+      ]
+    },
+    {
+      "arm": "LLOMEGA8",
+      "report": {
+        "steps": 16,
+        "top1_agree": 16,
+        "first_divergence": -1,
+        "max_abs_diff": 0.241038322,
+        "max_abs_diff_step": 9
+      },
+      "profile": [
+        "omega-gb10-profile op=RMS_NORM calls=2448 ms=406.135",
+        "omega-gb10-profile op=MUL_MAT calls=4240 ms=28705.488",
+        "omega-gb10-profile op=SWIGLU calls=512 ms=64.949"
+      ],
+      "forbiddenMappedLibraries": [],
+      "artifacts": [
+        {
+          "name": "cpu.logits",
+          "sha256": "f6fbe104d1f9f7ab732ffd89175acf2dddb12a5f164f39208bd8a6da10efbc30"
+        },
+        {
+          "name": "gb10.logits",
+          "sha256": "13dccae5fd1fc6e18b6d761e58dc572ab5651bd9e0c6c7ac93770f14ab89ff64"
+        },
+        {
+          "name": "gb10.maps",
+          "sha256": "f3efd7df843bfdbc64dbec730335fc510e24fbdf14937581776c22b8ac870ad6"
+        },
+        {
+          "name": "e2e",
+          "sha256": "8992080709d40e93da157b9c39c03ed8885cdf12701dd1c7f4656990fe877002"
+        },
+        {
+          "name": "cmp",
+          "sha256": "6de415c669e1fc748dbe62323336637fb4c208f43fa782b99a63fb7eb822f060"
+        }
+      ]
+    }
+  ],
+  "restoredHealth": {
+    "busy": false,
+    "concurrency": 8,
+    "engine": "omega-qwen36-batch",
+    "in_flight": 1,
+    "model": "qwen3.6-35b-a3b-fp8",
+    "status": "ok",
+    "uptime_s": 0
+  },
+  "modelWindow": "Completed exit0 with original shared model restored; next guarded corpus window separate.",
+  "backendBaseCommit": "e0813903ee2fc5f6ac23e6424741b00977d4bef9",
+  "cudappBaseCommit": "fc591d685ffce5a38013103aaf193867a870ca7f",
+  "cudappBuildCommit": "69a2419e5239c97d903fe6c9a2f59718c22d288f",
+  "backendLibrarySha256": "c9736aa25fe8238d9267dd1261f078de1dd82ed8b984f1bdae95f8f71baacf1d",
+  "llamaSource": "7aca0d2ea8d92b56911233b822db01f9fbb1ae50",
+  "rawResultLocation": "/home/drakestapleton/handoffs/stack-comparison-20261029/",
+  "testSourceHashes": [
+    {
+      "name": "tests/e2e.c",
+      "sha256": "2ec21518a8295a7afb75f1d87635a08076c91ecb6145791e7e09963884f8ddc6"
+    },
+    {
+      "name": "tests/e2e-gb10.sh",
+      "sha256": "0660eee79c1f2ef68c2e20fc124a5e204c9b124669042472086869c1a4003874"
+    },
+    {
+      "name": "tests/cmp.c",
+      "sha256": "1ec108264315806e2a53661cd9c09273cee82a3676cd12de3f63bb5f2ca41e58"
+    },
+    {
+      "name": "tests/test-cmp.mjs",
+      "sha256": "16f78070471077fa0670b842bc5aab610690bf77172c60e9fd5acb7b08e1984a"
+    },
+    {
+      "name": "tests/test-e2e-gb10.mjs",
+      "sha256": "1b39449f28e41be080e690d298bf13c70c8d9cadc689f0b3401e4a6ebfd46ce9"
+    }
+  ],
+  "controls": {
+    "comparator": 21,
+    "driver": 8,
+    "previousDriverFails": "e2e-driver-controls-red-1.log",
+    "previousComparatorAcceptsEmptyAndChangedToken": "comparator-red-1.json",
+    "fixedControls": [
+      "comparator-controls-final.log",
+      "e2e-driver-controls-final.log"
+    ]
+  },
+  "modelSha256": {
+    "BF16": "5d6fe481317c2570d8e136d6d6da7b33c97f5de4064f96a14b4ea46b8b80a9bb",
+    "Q8": "e1dc8c27e1a10b857fa9987f7456683a8f503583d83afa8fc749b0b5a0270b5c"
+  }
+}

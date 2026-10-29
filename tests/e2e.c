@@ -5,6 +5,8 @@
 // LOGITS_OUT: n_vocab f32 values per step, raw, for tests/cmp.c. Diagnostics on stderr. Exit 0 on success.
 #include "llama.h"
 #include "ggml-backend.h"
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,9 +17,34 @@ static const char *PROMPT = "The three primary colors of light are";
 static double now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return t.tv_sec + t.tv_nsec * 1e-9; }
 static void quiet(enum ggml_log_level l, const char *s, void *u) { (void) u; if (l >= GGML_LOG_LEVEL_WARN) fputs(s, stderr); }
 
+static int positive(const char *s) {
+    char *end;
+    errno = 0;
+    long v = strtol(s, &end, 10);
+    return errno || end == s || *end || v <= 0 || v > INT_MAX ? -1 : (int) v;
+}
+
+// Optional verification snapshot after inference, including libraries loaded lazily.
+static int save_maps(void) {
+    const char *path = getenv("E2E_MAPS_OUT");
+    if (!path) return 0;
+    FILE *in = fopen("/proc/self/maps", "rb"), *out = fopen(path, "wx");
+    if (!in || !out) { if (in) fclose(in); if (out) fclose(out); return 1; }
+    char buf[4096];
+    size_t n;
+    int bad = 0;
+    while ((n = fread(buf, 1, sizeof buf, in)) != 0)
+        if (fwrite(buf, 1, n, out) != n) { bad = 1; break; }
+    if (ferror(in)) bad = 1;
+    if (fclose(in) != 0) bad = 1;
+    if (fclose(out) != 0) bad = 1;
+    return bad;
+}
+
 int main(int argc, char **argv) {
     if (argc < 4) { fprintf(stderr, "usage: e2e MODEL N_TOKENS LOGITS_OUT [THREADS]\n"); return 2; }
-    int n_gen = atoi(argv[2]), threads = argc > 4 ? atoi(argv[4]) : 2;
+    int n_gen = positive(argv[2]), threads = argc > 4 ? positive(argv[4]) : 2;
+    if (n_gen < 1 || threads < 1) { fprintf(stderr, "invalid token or thread count\n"); return 2; }
     llama_log_set(quiet, NULL);
     ggml_backend_load_all();
     for (size_t i = 0; i < ggml_backend_dev_count(); i++)
@@ -37,7 +64,8 @@ int main(int argc, char **argv) {
     llama_token toks[64];
     int n_p = llama_tokenize(vocab, PROMPT, (int) strlen(PROMPT), toks, 64, true, false);
     if (n_p <= 0) { fprintf(stderr, "tokenize failed\n"); return 1; }
-    FILE *lf = fopen(argv[3], "wb");
+    if ((uint64_t) n_p + (uint64_t) n_gen - 1 > llama_n_ctx(ctx)) { fprintf(stderr, "generation exceeds context\n"); return 2; }
+    FILE *lf = fopen(argv[3], "wx");
     if (!lf) { perror(argv[3]); return 1; }
     struct llama_batch b = llama_batch_get_one(toks, n_p);
     double t0 = now(), t_first = 0;
@@ -53,7 +81,8 @@ int main(int argc, char **argv) {
         b = llama_batch_get_one(&cur, 1);
     }
     double t1 = now();
-    fclose(lf);
+    if (fclose(lf) != 0) { perror("close logits"); return 1; }
+    if (save_maps() != 0) { fprintf(stderr, "cannot save process maps\n"); return 1; }
     // decode rate over the single-token steps (prompt step excluded)
     printf("{\"n_vocab\":%d,\"prompt_tokens\":%d,\"prompt_s\":%.6f,\"gen_steps\":%d,\"gen_s\":%.6f,\"threads\":%d}\n", n_vocab, n_p, t_first - t0, n_gen - 1, t1 - t_first, threads);
     llama_free(ctx);

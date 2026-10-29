@@ -49,6 +49,11 @@ jobs:
           echo "math-exp mutant CAUGHT: $(grep -c ' FAIL$' build/kernels-mutant.txt) failing checks" | tee -a build/kernels-mutant.txt
       - name: test-backend-ops, Omega vs CPU, per op
         run: tests/backend-ops.sh deps/llama.cpp/build/bin/test-backend-ops "$PWD/build/libggml-omega.so" "$PWD/build-mut/libggml-omega.so" | tee build/backend-ops.tsv
+      - name: model comparison failure controls (host only)
+        run: |
+          cc -std=gnu11 -O2 -Wall -Wextra -Werror -o build/cmp tests/cmp.c -lm
+          node tests/test-cmp.mjs build/cmp
+          node tests/test-e2e-gb10.mjs
       - name: end to end, Qwen2.5-0.5B q8_0, CPU vs Omega
         if: always()
         run: |
@@ -63,7 +68,7 @@ jobs:
           GGML_BACKEND_PATH=$PWD/build/libggml-omega.so ./build/e2e model.gguf $N build/omega.logits 2 > build/e2e-omega.jsonl 2> build/e2e-omega.err
           cat build/e2e-omega.err
           NV=$(tail -n1 build/e2e-cpu.jsonl | sed 's/.*"n_vocab":\([0-9]*\).*/\1/')
-          ./build/cmp "$NV" build/cpu.logits build/omega.logits | tee build/e2e-cmp.json
+          ./build/cmp "$NV" build/cpu.logits build/omega.logits "$N" | tee build/e2e-cmp.json
           cat build/e2e-cpu.jsonl build/e2e-omega.jsonl
       - uses: actions/upload-artifact@v4
         if: always()

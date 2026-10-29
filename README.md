@@ -38,13 +38,35 @@ fails 385 MUL_MAT cases. This is op-level EXERCISED on one chip, not a qualifica
 GB10 device (`tests/e2e-gb10.sh`, CPU vs OmegaGB10 token and logit match) waits for an exclusive GPU window; CI
 has no GB10 and builds the host device only.
 
+Follow-up on this experimental branch, 2026-10-29: the exclusive model window was
+authorized and exercised. Qwen2.5-0.5B Q8 and Qwen3.5-9B BF16/Q8 each matched the
+CPU reference's greedy tokens for the fixed prompt over 16 steps. The Q35 runs
+recorded nonzero MUL_MAT, RMS_NORM and SWIGLU calls and an after-inference library
+snapshot without the forbidden NVIDIA user-space libraries. Logits are not
+numerically identical; this is a bounded model check, not full chat-corpus or
+performance qualification. The source and file hashes, exclusions and raw-result
+locations are in `evidence/gb10-model-20261029.json`.
+
+The model comparison now fails for empty output, partial rows, nonfinite scores,
+wrong step counts or a changed greedy token. `e2e-gb10.sh` also requires executed
+operations and the inference library snapshot. Its comparator status reaches the
+caller without a `tee` pipeline hiding a failure. Existing result files are
+preserved; reruns need a fresh output directory.
+
 ## Build and test
 
 ```sh
 OMEGA_GGML_OMC=<omega-mv seed/out/omc> OMEGA_BRIDGE=<omega-bridge checkout> \
 GGML_SRC=<llama.cpp checkout> GGML_LIB=<llama.cpp build/bin> ./build.sh
 tests/backend-ops.sh <build/bin/test-backend-ops> build/libggml-omega.so [mutant .so]
+cc -std=gnu11 -O2 -Wall -Wextra -Werror -o build/cmp tests/cmp.c -lm
+node tests/test-cmp.mjs build/cmp
+node tests/test-e2e-gb10.mjs
 ```
+
+The two Node scripts are verification-only failure controls, tested with Node
+v24.21.0; they do not add a model-serving or production dependency. The full model
+driver remains shell/C and uses the pinned llama.cpp build.
 
 Pins (checked by `build.sh`, refuses on mismatch): omc sha256 `2c824805…` (aien-dev/omega-mv `e5b32567`),
 omega-bridge `src/native.om` sha256 `901684b2…` (omega-bridge `d06ec808`), llama.cpp `7aca0d2e`.
