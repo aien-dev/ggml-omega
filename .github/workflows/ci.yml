@@ -40,6 +40,11 @@ jobs:
           ./build.sh
           OMEGA_GGML_OUT=$PWD/build-mut OMEGA_GGML_MUTANT=bin-add ./build.sh
           OMEGA_GGML_OUT=$PWD/build-exp OMEGA_GGML_MUTANT=math-exp ./build.sh
+      - name: backend private-symbol isolation
+        run: |
+          sh tests/exports.sh build/libggml-omega.so
+          sh tests/exports.sh build-mut/libggml-omega.so
+          sh tests/exports.sh build-exp/libggml-omega.so
       - name: Omega math units against libm and _Float16
         run: |
           cc -std=gnu11 -O2 -ffp-contract=off -Wall -Wextra -Werror -o build/test-kernels tests/kernels.c build/omega_ggml_kernels.o -lm

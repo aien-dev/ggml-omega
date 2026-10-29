@@ -77,5 +77,5 @@ fi
 cc -std=gnu11 -O2 -Wall -Wextra -Werror -fPIC -pthread $GBC -I"$SRC/ggml/include" -I"$SRC/ggml/src" -I"$O" -I"$ROOT" \
   -c -o "$O/ggml-omega.o" "$ROOT/ggml-omega.c"
 cc -shared -pthread -o "$O/libggml-omega.so" "$O/ggml-omega.o" $GBO "$O/omega_ggml_kernels.o" $GBL \
-  -L"$LIB" -lggml-base -lggml-cpu -Wl,-rpath,"$LIB"
+  -L"$LIB" -lggml-base -lggml-cpu -Wl,-rpath,"$LIB" -Wl,--version-script="$ROOT/exports.map"
 echo "BUILT $O/libggml-omega.so ($(echo $INST | wc -w) Omega units, GB10 device $GB10, omc $(echo $PIN | cut -c1-12), llama.cpp $(echo $LLAMA_PIN | cut -c1-12))"

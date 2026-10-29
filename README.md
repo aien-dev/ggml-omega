@@ -68,6 +68,13 @@ The two Node scripts are verification-only failure controls, tested with Node
 v24.21.0; they do not add a model-serving or production dependency. The full model
 driver remains shell/C and uses the pinned llama.cpp build.
 
+The shared library exports only `ggml_backend_init`. Its Omega kernels, CUDApp
+entries and hashing helpers are private to the backend. This prevents a host
+library such as llama.cpp's `libmtmd` from replacing a same-named helper with an
+incompatible signature. `sh tests/exports.sh build/libggml-omega.so` checks this
+boundary. A full-server startup exposed this collision after the bounded model
+tests passed; those earlier tests did not load `libmtmd`.
+
 Pins (checked by `build.sh`, refuses on mismatch): omc sha256 `2c824805…` (aien-dev/omega-mv `e5b32567`),
 omega-bridge `src/native.om` sha256 `901684b2…` (omega-bridge `d06ec808`), llama.cpp `7aca0d2e`.
 `.github/workflows/ci.yml` runs the whole chain on `ubuntu-24.04-arm`: kernels vs libm and `_Float16`,
