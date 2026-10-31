@@ -1,14 +1,17 @@
 {
-  "schema_version": "1.0.0",
-  "name": "ggml-omega",
-  "purpose": "ggml/llama.cpp out-of-tree backend whose op kernels (MUL_MAT f32/f16/q8_0, ADD/SUB/MUL/DIV, RMS_NORM, SCALE, SOFT_MAX, ROPE, GET_ROWS, SET_ROWS, CPY, SWIGLU, SILU) are seeded-Omega units bound through the omega-bridge native call ABI; unsupported ops fall back to the CPU backend.",
-  "layer": "compatibility",
-  "parent": "aien-dev/omega-bridge",
-  "lineage": { "parent": "aien-dev/omega-bridge", "issue": "aien-dev/omega-bridge#10", "generation": 1 },
-  "pins": {
-    "omc": "aien-dev/omega-mv e5b32567a7aff3ce594e3254a622a846a6cd190b seed/out/omc sha256 2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f",
-    "native.om": "aien-dev/omega-bridge d06ec808de7da583acbadf0cb4bb3ba48797e729 src/native.om sha256 901684b2dc7cd148eb6bb2fe74dd43a6bce857ff014308b00ebaa9d18029158d",
-    "llama.cpp": "ggml-org/llama.cpp 7aca0d2ea8d92b56911233b822db01f9fbb1ae50"
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-31T11:52:56Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:fea0cf2d6ff42f7c811e170c031673eb828096be3c56e9a38b986aafd78986cd",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 33,
+      "generated_at_commit": "db86d1a2dfc0613294d27f984b99a48bb97dd27a",
+      "source_tree": "sha256:a1cc3ba49a6a73e337af7110817528b19800b746513a33822fc61f0e87735f23"
+    }
   },
   "invariants": [
     "All arithmetic and numeric conversion runs in Omega units; ggml-omega.c only addresses, loops, stages and moves bits, and is interim until the Omega native object ABI (omega-mv #636/#637).",
@@ -16,7 +19,26 @@
     "An op with no executed Omega case is NOT_RUN, never PASS; the add->sub mutant must fail test-backend-ops.",
     "Nothing is posted to ggml-org/llama.cpp."
   ],
+  "layer": "compatibility",
+  "lineage": {
+    "generation": 1,
+    "issue": "aien-dev/omega-bridge#10",
+    "parent": "aien-dev/omega-bridge"
+  },
+  "name": "ggml-omega",
+  "parent": "aien-dev/omega-bridge",
+  "pins": {
+    "llama.cpp": "ggml-org/llama.cpp 7aca0d2ea8d92b56911233b822db01f9fbb1ae50",
+    "native.om": "aien-dev/omega-bridge d06ec808de7da583acbadf0cb4bb3ba48797e729 src/native.om sha256 901684b2dc7cd148eb6bb2fe74dd43a6bce857ff014308b00ebaa9d18029158d",
+    "omc": "aien-dev/omega-mv e5b32567a7aff3ce594e3254a622a846a6cd190b seed/out/omc sha256 2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f"
+  },
+  "purpose": "ggml/llama.cpp out-of-tree backend whose op kernels (MUL_MAT f32/f16/q8_0, ADD/SUB/MUL/DIV, RMS_NORM, SCALE, SOFT_MAX, ROPE, GET_ROWS, SET_ROWS, CPY, SWIGLU, SILU) are seeded-Omega units bound through the omega-bridge native call ABI; unsupported ops fall back to the CPU backend.",
+  "schema_version": "1.0.0",
   "whispers": [
-    { "agent": "OmegaGgml", "timestamp": "2026-10-27T01:25:36Z", "message": "Created for omega-bridge issue #10; kernels and oracle tests pass on Spark, CI runs test-backend-ops and e2e." }
+    {
+      "agent": "OmegaGgml",
+      "message": "Created for omega-bridge issue #10; kernels and oracle tests pass on Spark, CI runs test-backend-ops and e2e.",
+      "timestamp": "2026-10-27T01:25:36Z"
+    }
   ]
 }
