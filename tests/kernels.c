@@ -16,6 +16,7 @@ uint32_t omega_rope(uint64_t *r, uint64_t xy, uint64_t pos, uint64_t i, uint64_t
 uint32_t omega_silu_1(uint64_t *r, ARR(a), OUT(d));
 uint32_t omega_rmsc(uint64_t *r, uint64_t acc, uint64_t n, uint64_t eps);
 uint32_t omega_dq8_1(uint64_t *r, uint64_t acc, ARR(w), ARR(x), uint64_t fin);
+uint32_t omega_bfs_1(uint64_t *r, ARR(s), OUT(h), OUT(l));
 
 static int fails;
 static uint32_t fb(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
@@ -122,6 +123,16 @@ int main(void) {
         if (fb(bf((uint32_t) o)) != fb(want)) bad++;
     }
     report("q8_0 block dot exact", n, bad, 0, 0);
+    // f32 -> bf16 hi + lo split: plain C reference (truncation), every 1021st finite f32 bit pattern, exact
+    n = bad = 0;
+    for (uint64_t u = 0; u < 4294967296ull; u += 1021) {
+        float x = bf((uint32_t) u);
+        if (!isfinite(x)) continue;
+        uint16_t h, l; OK(omega_bfs_1(&r, &x, 1, &h, 1, &l, 1));
+        uint16_t wh = (uint16_t) (u >> 16), wl = (uint16_t) (fb(x - bf((uint32_t) u & 0xffff0000u)) >> 16); n++;
+        if (h != wh || l != wl) bad++;
+    }
+    report("bf16 hi/lo split exact", n, bad, 0, 0);
     printf("%s\n", fails ? "KERNELS FAIL" : "KERNELS PASS");
     return fails ? 1 : 0;
 }

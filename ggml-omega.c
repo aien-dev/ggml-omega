@@ -407,14 +407,30 @@ static ggml_guid_t omega_guid(void) {
 }
 
 static void omega_set_n_threads(ggml_backend_t b, int n) {
-    GGML_ASSERT(b && ggml_guid_matches(b->guid, omega_guid()));
+    GGML_ASSERT(b);
+    if (!ggml_guid_matches(b->guid, omega_guid())) return;  // the GB10 backend has no host thread pool
     ((struct omega_ctx *) b->context)->n_threads = n;
 }
 
 static ggml_backend_reg_t omega_reg(void);
 
-static const char *dev_name(ggml_backend_dev_t d) { (void) d; return "Omega"; }
-static const char *dev_desc(ggml_backend_dev_t d) { (void) d; return "seeded-Omega kernels via omega-bridge (host)"; }
+// Device context: NULL is the host device "Omega"; &gb10_tag is the GB10 device (OMEGA_GGML_GB10 builds).
+static int gb10_tag;
+static bool is_gb10(ggml_backend_dev_t d) { return d->context == &gb10_tag; }
+
+#ifdef OMEGA_GGML_GB10
+#include "ggml-omega-gb10.h"
+#endif
+
+static const char *dev_name(ggml_backend_dev_t d) {
+#ifdef OMEGA_GGML_GB10
+    if (is_gb10(d)) return OMEGA_GB10_NAME;
+#endif
+    (void) d; return "Omega";
+}
+static const char *dev_desc(ggml_backend_dev_t d) {
+    return is_gb10(d) ? "NVIDIA GB10 via CUDA++ (aien-dev/CUDApp), Omega-planned" : "seeded-Omega kernels via omega-bridge (host)";
+}
 static void dev_memory(ggml_backend_dev_t d, size_t *free_, size_t *total) { (void) d; *free_ = 0; *total = 0; }
 static enum ggml_backend_dev_type dev_type(ggml_backend_dev_t d) { (void) d; return GGML_BACKEND_DEVICE_TYPE_ACCEL; }
 
@@ -426,6 +442,9 @@ static void dev_props(ggml_backend_dev_t d, struct ggml_backend_dev_props *p) {
 
 static ggml_backend_t dev_init(ggml_backend_dev_t d, const char *params) {
     (void) params;
+#ifdef OMEGA_GGML_GB10
+    if (is_gb10(d)) return omega_gb10_init(d);
+#endif
     struct omega_ctx *ctx = malloc(sizeof *ctx);
     ggml_backend_t b = malloc(sizeof *b);
     if (!ctx || !b) { free(ctx); free(b); return NULL; }
@@ -445,6 +464,9 @@ static bool rows1(const struct ggml_tensor *t) { return t->nb[0] == ggml_type_si
 static bool fh(const struct ggml_tensor *t) { return t->type == GGML_TYPE_F32 || t->type == GGML_TYPE_F16; }
 
 static bool dev_supports_op(ggml_backend_dev_t d, const struct ggml_tensor *op) {
+#ifdef OMEGA_GGML_GB10
+    if (is_gb10(d)) return omega_gb10_supports_op(op);
+#endif
     (void) d;
     const struct ggml_tensor *s0 = op->src[0], *s1 = op->src[1];
     switch (op->op) {
@@ -504,13 +526,30 @@ static const struct ggml_backend_device_i omega_dev_i = {
     .supports_buft = dev_supports_buft,
 };
 
+// OMEGA_GGML_DEVICES picks the devices: unset or "host" the host device only, "gb10" the GB10 device only,
+// "host,gb10" both (GB10 needs a build with OMEGA_GGML_GB10=1; otherwise "gb10" registers nothing).
+static struct ggml_backend_device omega_devs[2];
+static size_t omega_ndev;
+static void devs_init(ggml_backend_reg_t r) {
+    static bool done;
+    if (done) return;
+    done = true;
+    const char *e = getenv("OMEGA_GGML_DEVICES");
+    const bool host = !e || strstr(e, "host") != NULL;
+#ifdef OMEGA_GGML_GB10
+    const bool gb10 = e && strstr(e, "gb10") != NULL;
+#else
+    const bool gb10 = false;
+#endif
+    if (host) omega_devs[omega_ndev++] = (struct ggml_backend_device) { .iface = omega_dev_i, .reg = r, .context = NULL };
+    if (gb10) omega_devs[omega_ndev++] = (struct ggml_backend_device) { .iface = omega_dev_i, .reg = r, .context = &gb10_tag };
+}
 static const char *reg_name(ggml_backend_reg_t r) { (void) r; return "Omega"; }
-static size_t reg_count(ggml_backend_reg_t r) { (void) r; return 1; }
+static size_t reg_count(ggml_backend_reg_t r) { devs_init(r); return omega_ndev; }
 static ggml_backend_dev_t reg_dev(ggml_backend_reg_t r, size_t i) {
-    static struct ggml_backend_device dev = { .iface = omega_dev_i, .context = NULL };
-    GGML_ASSERT(i == 0);
-    dev.reg = r;
-    return &dev;
+    devs_init(r);
+    GGML_ASSERT(i < omega_ndev);
+    return &omega_devs[i];
 }
 static void *reg_proc(ggml_backend_reg_t r, const char *name) {
     (void) r;

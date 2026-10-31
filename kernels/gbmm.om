@@ -1,0 +1,125 @@
+note gbmm: plan one ggml MUL_MAT as omega_gpu_gemm_ex calls on the GB10 (CUDApp), dst = src1 x src0^T.
+note d: src0 ne 0..3, nb 4..7, element bytes 8; src1 ne 9..12, nb 13..16, element bytes 17;
+note dst ne 18..21, nb 22..25, element bytes 26. g: the call (group) index, 0 .. groups-1.
+note p: 0 m, 1 n, 2 k, 3 lda, 4 ldb, 5 ldc, 6 batch, 7 stride_a, 8 stride_b, 9 stride_c (elements),
+note 10 src1 byte offset, 11 src0 byte offset, 12 dst byte offset of call g, 13 groups.
+note Result 0 when planned; otherwise the first rule broken (p untouched): 1 element bytes, 2 a row not
+note dense, 3 shapes disagree, 4 broadcast not whole, 5 a stride not a whole element, 6 a leading
+note dimension below its row, 7 batches of dst overlap, 8 g past the groups.
+note whole: 1 when the strides d[i], d[i+1], d[i+2] are whole multiples of e bytes.
+fn whole d view ulong 32 i ulong e ulong to ulong
+if ne rem get d i e 0
+ret 0
+end
+if ne rem get d add i 1 e 0
+ret 0
+end
+if ne rem get d add i 2 e 0
+ret 0
+end
+ret 1
+end
+note gbck: the shape rules, 0 or the first broken rule.
+fn gbck d view ulong 32 to ulong
+e0 = get d 8
+if ne get d 17 4
+ret 1
+end
+if ne get d 26 4
+ret 1
+end
+if and ne e0 4 ne e0 2
+ret 1
+end
+if ne get d 4 e0
+ret 2
+end
+if ne get d 13 4
+ret 2
+end
+if ne get d 22 4
+ret 2
+end
+if ne get d 9 get d 0
+ret 3
+end
+if ne get d 18 get d 1
+ret 3
+end
+if ne get d 19 get d 10
+ret 3
+end
+if ne get d 20 get d 11
+ret 3
+end
+if ne get d 21 get d 12
+ret 3
+end
+if eq get d 2 0
+ret 3
+end
+if eq get d 3 0
+ret 3
+end
+if ne rem get d 11 get d 2 0
+ret 4
+end
+if ne rem get d 12 get d 3 0
+ret 4
+end
+if eq whole d 5 e0 0
+ret 5
+end
+if eq whole d 14 4 0
+ret 5
+end
+if eq whole d 23 4 0
+ret 5
+end
+if lt div get d 14 4 get d 0
+ret 6
+end
+if lt div get d 5 e0 get d 0
+ret 6
+end
+if lt div get d 23 4 get d 1
+ret 6
+end
+if gt div get d 11 get d 2 1
+if lt div get d 24 4 mul div get d 23 4 get d 10
+ret 7
+end
+end
+ret 0
+end
+fn gbmm d view ulong 32 g ulong p edit ulong 16 to ulong
+c = gbck d
+if ne c 0
+ret c
+end
+ng = mul get d 12 get d 2
+if ge g ng
+ret 8
+end
+r2 = div get d 11 get d 2
+i3 = div g get d 2
+i2 = mul rem g get d 2 r2
+put p 0 get d 10
+put p 1 get d 1
+put p 2 get d 0
+put p 3 div get d 14 4
+put p 4 div get d 5 get d 8
+put p 5 div get d 23 4
+put p 6 r2
+put p 7 div get d 15 4
+put p 8 0
+put p 9 div get d 24 4
+put p 10 add mul i3 get d 16 mul i2 get d 15
+o3 = div i3 div get d 12 get d 3
+o3 = mul o3 get d 7
+put p 11 add o3 mul div i2 r2 get d 6
+o3 = mul i3 get d 25
+put p 12 add o3 mul i2 get d 24
+put p 13 ng
+ret 0
+end
