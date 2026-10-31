@@ -1,0 +1,9 @@
+note sq_@T@: acc (f64 bits) + the sum over @T@ lanes of f64(x*x), the rms_norm sum of ggml-cpu.
+fn sq_@T@ acc ulong x view f32 @T@ to ulong
+s = bitcast f64 acc
+for i ulong @T@
+v = get x i
+s = add s f64 mul v v
+end
+ret bitcast ulong s
+end

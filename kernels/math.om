@@ -1,0 +1,157 @@
+note math.om: private f64/f16 helpers prepended to the ggml-omega kernel units that need them
+note (exp, log, pow, sin, cos, f16 <-> f32). Constants are binary64 bit patterns checked in Wolfram
+note Language (ImportByteArray of the bits, difference to Log[2], 1/Log[2], Pi/2, 2/Pi, Sqrt[2]):
+note ln2 hi+lo -1.2e-26, pio2 1+2+3 -8.5e-32; the hi parts end in >= 21 zero bits, so k*hi is exact for |k| < 2^21.
+const cln2h ulong 4604418534311723008
+const cln2l ulong 4461442080421002358
+const civln2 ulong 4609176140021203710
+const cpio21 ulong 4609753056924401664
+const cpio22 ulong 4454258360616747008
+const cpio23 ulong 4297306550709518336
+const civpio2 ulong 4603909380684499075
+const csqrt2 ulong 4609047870845172685
+note rnd: x rounded to the nearest whole number (halves away from zero), as long.
+fn rnd x f64 to long
+if lt x 0.0
+ret long sub x 0.5
+end
+ret long add x 0.5
+end
+note ex64: e^x. Inputs below -200 give 0 (every f32 result there is 0), above 709 are clamped (f32 inf).
+fn ex64 x f64 to f64
+if ne x x
+ret x
+end
+if lt x -200.0
+ret 0.0
+end
+y = x
+if gt y 709.0
+y = 709.0
+end
+k = rnd mul y bitcast f64 civln2
+kf = f64 k
+r = sub sub y mul kf bitcast f64 cln2h mul kf bitcast f64 cln2l
+p = f64 1.0
+for i ulong 13
+n = f64 sub 13 i
+p = add 1.0 div mul r p n
+end
+sc = bitcast f64 shl ulong add k 1023 52
+ret mul p sc
+end
+note ln64: natural log of a positive normal x.
+fn ln64 x f64 to f64
+b = bitcast ulong x
+e = sub long shr b 52 1023
+m = bitcast f64 or and b 4503599627370495 shl ulong 1023 52
+if gt m bitcast f64 csqrt2
+m = div m 2.0
+e = add e 1
+end
+s = div sub m 1.0 add m 1.0
+s2 = mul s s
+t = f64 0.0
+for i ulong 12
+n = f64 add mul 2 sub 11 i 1
+t = add div 1.0 n mul s2 t
+end
+ef = f64 e
+ret add mul ef bitcast f64 cln2h add mul ef bitcast f64 cln2l mul mul 2.0 s t
+end
+note sinr / cosr: Taylor series on |r| <= pi/4.
+fn sinr r f64 to f64
+r2 = mul r r
+t = f64 1.0
+for i ulong 9
+n = f64 sub 9 i
+t = sub 1.0 div mul r2 t mul mul 2.0 n add mul 2.0 n 1.0
+end
+ret mul r t
+end
+fn cosr r f64 to f64
+r2 = mul r r
+t = f64 1.0
+for i ulong 10
+n = f64 sub 10 i
+t = sub 1.0 div mul r2 t mul sub mul 2.0 n 1.0 mul 2.0 n
+end
+ret t
+end
+note sc64: sin (c 0) or cos (c 1) of x, reduced by k * pi/2 in three parts.
+fn sc64 x f64 c ulong to f64
+if ne x x
+ret x
+end
+k = rnd mul x bitcast f64 civpio2
+kf = f64 k
+r = sub sub sub x mul kf bitcast f64 cpio21 mul kf bitcast f64 cpio22 mul kf bitcast f64 cpio23
+q = add ulong and k 3 c
+q = and q 3
+if eq q 0
+ret sinr r
+end
+if eq q 1
+ret cosr r
+end
+if eq q 2
+ret neg sinr r
+end
+ret neg cosr r
+end
+note h2f: binary16 bits to f32.
+fn h2f h ushort to f32
+v = uint h
+s = shl and shr v 15 1 31
+e = and shr v 10 31
+m = and v 1023
+if eq e 0
+z = mul f32 m 0.000000059604644775390625f32
+if eq s 0
+ret z
+end
+ret neg z
+end
+if eq e 31
+ret bitcast f32 or or s 2139095040 shl m 13
+end
+ret bitcast f32 or or s shl add e 112 23 shl m 13
+end
+note rne: v >> sh (sh 1 .. 31) rounded to nearest, ties to even.
+fn rne v uint sh uint to uint
+r = shr v sh
+hf = shl uint 1 sub sh 1
+rm = and v sub shl hf 1 1
+up = gt rm hf
+if and eq rm hf eq and r 1 1
+up = true
+end
+if up
+ret add r 1
+end
+ret r
+end
+note f2h: f32 to binary16 bits, round to nearest even (as FCVT).
+fn f2h x f32 to ushort
+b = bitcast uint x
+s = and shr b 16 32768
+e = long and shr b 23 255
+m = and b 8388607
+if eq e 255
+if eq m 0
+ret ushort or s 31744
+end
+ret ushort or or s 32256 shr m 13
+end
+ee = sub e 112
+if ge ee 31
+ret ushort or s 31744
+end
+if le ee 0
+if lt ee -10
+ret ushort s
+end
+ret ushort or s rne or m 8388608 uint sub 14 ee
+end
+ret ushort or s rne or shl uint ee 23 m 13
+end

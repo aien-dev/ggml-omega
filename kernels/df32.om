@@ -1,0 +1,11 @@
+note df32_@T@: acc (f64 bits) + sum of f64(w*x) over @T@ lanes; fin 1 returns the f32 bits of the total.
+fn df32_@T@ acc ulong w view f32 @T@ x view f32 @T@ fin ulong to ulong
+s = bitcast f64 acc
+for i ulong @T@
+s = add s f64 mul get w i get x i
+end
+if eq fin 1
+ret ulong bitcast uint f32 s
+end
+ret bitcast ulong s
+end

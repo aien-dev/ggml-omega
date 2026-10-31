@@ -1,0 +1,11 @@
+note vmax_@T@: running maximum (f32 bits) over @T@ lanes, as ggml_vec_max_f32 (MAX(max, x)).
+fn vmax_@T@ acc ulong x view f32 @T@ to ulong
+m = bitcast f32 uint acc
+for i ulong @T@
+v = get x i
+if gt v m
+m = v
+end
+end
+ret ulong bitcast uint m
+end

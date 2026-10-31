@@ -1,0 +1,6 @@
+note cpyh_@T@: f16 copy on @T@ lanes.
+fn cpyh_@T@ s view ushort @T@ d edit ushort @T@ to void
+for i ulong @T@
+put d i get s i
+end
+end

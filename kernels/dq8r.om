@@ -1,0 +1,11 @@
+note dq8r: one q8_0 block (34 bytes) dequantised to 32 f32: y = f32(q) * d, as ggml-cpu dequantize_row_q8_0.
+fn dq8r w view uchar 34 y edit f32 32 to void
+d = h2f ushort or ulong get w 0 shl ulong get w 1 8
+for j ulong 32
+q = long get w add 2 j
+if ge q 128
+q = sub q 256
+end
+put y j mul f32 q d
+end
+end

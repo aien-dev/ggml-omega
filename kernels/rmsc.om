@@ -1,0 +1,7 @@
+note rmsc: the rms_norm row scale 1/sqrt(f32(sum/n) + eps) as f32 bits; sum is f64 bits, eps f32 bits.
+fn rmsc acc ulong n ulong eps ulong to ulong
+mean = f32 div bitcast f64 acc f64 n
+e = bitcast f32 uint eps
+r = div f32 1.0 fsqrt add mean e
+ret ulong bitcast uint r
+end

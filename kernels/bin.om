@@ -1,0 +1,20 @@
+note bin_@T@: d = a op b on @T@ f32 lanes; op 0 add, 1 sub, 2 mul, 3 div (one rounding each, as ggml-cpu).
+fn bin_@T@ op ulong a view f32 @T@ b view f32 @T@ d edit f32 @T@ to void
+for i ulong @T@
+x = get a i
+y = get b i
+if eq op 0
+put d i add x y
+else
+if eq op 1
+put d i sub x y
+else
+if eq op 2
+put d i mul x y
+else
+put d i div x y
+end
+end
+end
+end
+end

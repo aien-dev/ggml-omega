@@ -1,0 +1,7 @@
+note smwh_@T@: the soft_max input w = x*scale + mask with an f16 mask, on @T@ lanes.
+fn smwh_@T@ x view f32 @T@ m view ushort @T@ d edit f32 @T@ sc ulong to void
+sf = bitcast f32 uint sc
+for i ulong @T@
+put d i add mul get x i sf h2f get m i
+end
+end

@@ -1,0 +1,6 @@
+note rtsc: the rope theta scale powf(base, -2/n_dims) as f32 bits (base f32 bits).
+fn rtsc base ulong nd ulong to ulong
+b = bitcast f32 uint base
+ex = div f32 -2.0 f32 nd
+ret ulong bitcast uint f32 ex64 mul f64 ex ln64 f64 b
+end
